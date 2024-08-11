@@ -10,32 +10,40 @@
 
 #define SETTINGS_PATH "org.gnome.desktop.background"
 #define SETTINGS_KEY "picture-uri"
-#define URI_HEADER "file://"
-#define URI_HEADER_LEN 7
+#define SETTINGS_KEY_DARK "picture-uri-dark"
 
 static int set_wallpaper(lua_State* ls)
 {
-	const char* path = luaL_checkstring(ls, 1);
-	GSettings* gs = NULL;
-	int len = luaL_len(ls, 1);
-	gboolean res;
-	char buffer[len + URI_HEADER_LEN + 1];
+	GSettings* settings = NULL;
+	gchar **key_list = NULL;
+	const char* wp_path = NULL;
+	gboolean rc = TRUE;
 
-	if (0 != access(path, F_OK))
-		luaL_error(ls, "file not exist \'%s\'", path ? path : "(nil)");
+	wp_path = luaL_checkstring(ls, 1);
+	if (0 != access(wp_path, F_OK))
+		luaL_error(ls, "file not exist \'%s\'", wp_path ? wp_path : "(nil)");
 
-	memcpy(buffer, URI_HEADER, URI_HEADER_LEN);
-	memcpy(buffer + URI_HEADER_LEN, path, len + 1);
+	wp_path = lua_pushfstring(ls, "file://%s", wp_path);
 
-	gs = g_settings_new(SETTINGS_PATH);
-	if (NULL == gs)
+	settings = g_settings_new(SETTINGS_PATH);
+	if (settings == NULL)
 		luaL_error(ls, "cannot open settings " SETTINGS_PATH);
-	res = g_settings_set_string(gs, SETTINGS_KEY, buffer);
+	key_list = g_settings_list_keys(settings);
+	if (key_list == NULL) {
+		g_object_unref(settings);
+		luaL_error(ls, "cannot list settings " SETTINGS_PATH);
+	}
+	for (int i = 0; rc && key_list[i]; i++) {
+		const gchar *key = key_list[i];
+		if (strcmp(key, SETTINGS_KEY) == 0 || strcmp(key, SETTINGS_KEY_DARK) == 0)
+			rc = g_settings_set_string(settings, key, wp_path);
+	}
 	g_settings_sync();
-	g_object_unref(gs);
+	g_strfreev(key_list);
+	g_object_unref(settings);
 
-	if (!res)
-		luaL_error(ls, "cannot set key " SETTINGS_KEY " to \'%s\'", path);
+	if (!rc)
+		luaL_error(ls, "cannot set wallpaper to \'%s\'", wp_path);
 	return 0;
 }
 

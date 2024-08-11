@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/bin/env lua5.3
 -- get folder from command line
 
 local interval = 120
@@ -9,7 +9,7 @@ local file_list = {}
 local function has_lock()
 	local res, val = pcall(wp.has_screenlock, 3000)
 	if not res then
-		print(val)
+		print(arg[0] .. ": " .. val)
 		return false
 	end
 	return val
@@ -50,8 +50,8 @@ local function update()
 	cur_cnt = 0
 
 	if not res then
-		msg = msg .. "failed " .. err
-		file_list[index] = nil
+		msg = msg .. "failed " .. err .. ' ' .. path
+		table.remove(file_list, index)
 	else
 		msg = msg .. "changed to " .. path
 	end
@@ -68,11 +68,11 @@ local function build_list(path, list)
 			local ext = string.match(k, ".*%.(.*)")
 			if ext then
 				ext = string.lower(ext)
-			end
-			if ext == "jpg" or ext == "jpeg" or ext == "png" or ext == "bmp" then
-				local full_name = path .. k
-				print(arg[0] .. ": " .. full_name)
-				file_list[#file_list + 1] = full_name
+				if ext == "jpg" or ext == "jpeg" or ext == "png" or ext == "bmp" then
+					local full_name = path .. k
+					print(arg[0] .. ": " .. full_name)
+					table.insert(file_list, full_name)
+				end
 			end
 		end
 	end
@@ -85,7 +85,7 @@ local function main()
 		print(arg[0] .. ": finding pictures in " .. path)
 		local res, list = pcall(wp.ls, path)
 		if not res then
-			print(list)
+			print(arg[0] .. ": " .. list)
 			return
 		end
 		build_list(path, list)
